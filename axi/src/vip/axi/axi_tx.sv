@@ -5,7 +5,7 @@ class axi_tx extends uvm_sequence_item;
 
   `uvm_object_utils(axi_tx)
 
-  // transaction variables
+  // transaction attributes
   rand bit rwb;
   rand bit [AXI_ID_WIDTH-1:0] id;
   rand bit [AXI_ADDR_WIDTH-1:0] addr;
@@ -19,7 +19,11 @@ class axi_tx extends uvm_sequence_item;
   rand bit [2:0] prot;
   rand bit [3:0] qos;  // AXI4 only
   rand bit [3:0] region;  // AXI4 only
+  rand bit [1:0] resp;
 
+  // monitor/driver attributes
+  bit write_cmd_has_been_sent = 0;
+  bit write_data_has_been_sent = 0;
 
   extern function new(string name = "");
   extern function void do_copy(uvm_object rhs);
@@ -29,6 +33,24 @@ class axi_tx extends uvm_sequence_item;
   extern function void do_pack(uvm_packer packer);
   extern function void do_unpack(uvm_packer packer);
   extern function string convert2string();
+
+  constraint main_c {
+    data.size() == burst_len_m1 + 1;
+    byte_en.size() == burst_len_m1 + 1;
+    // FIXME: support 1 beat of 32b for now @0x0
+    addr == 0;
+    burst_len_m1 == 0;
+    burst_size_log2 == 'b101;
+    id == 0;
+    rwb == 0;
+    // FIXME: to be implemented
+    lock == 0;
+    cache == 0;
+    prot == 0;
+    qos == 0;
+    region == 0;
+    resp == 0;
+  }
 
 endclass : axi_tx
 
@@ -55,6 +77,7 @@ function void axi_tx::do_copy(uvm_object rhs);
   prot = rhs_.prot;
   qos = rhs_.qos;
   region = rhs_.region;
+  resp = rhs_.resp;
 endfunction : do_copy
 
 
@@ -81,6 +104,7 @@ function bit axi_tx::do_compare(uvm_object rhs, uvm_comparer comparer);
   result &= comparer.compare_field("prot", prot, rhs_.prot, $bits(prot));
   result &= comparer.compare_field("qos", qos, rhs_.qos, $bits(qos));
   result &= comparer.compare_field("region", region, rhs_.region, $bits(region));
+  result &= comparer.compare_field("resp", resp, rhs_.resp, $bits(resp));
   return result;
 endfunction : do_compare
 
@@ -106,6 +130,7 @@ function void axi_tx::do_record(uvm_recorder recorder);
   `uvm_record_field("prot", prot)
   `uvm_record_field("qos", qos)
   `uvm_record_field("region", region)
+  `uvm_record_field("resp", resp)
 endfunction : do_record
 
 
@@ -124,6 +149,7 @@ function void axi_tx::do_pack(uvm_packer packer);
   `uvm_pack_int(prot)
   `uvm_pack_int(qos)
   `uvm_pack_int(region)
+  `uvm_pack_int(resp)
 endfunction : do_pack
 
 
@@ -142,6 +168,7 @@ function void axi_tx::do_unpack(uvm_packer packer);
   `uvm_unpack_int(prot)
   `uvm_unpack_int(qos)
   `uvm_unpack_int(region)
+  `uvm_unpack_int(resp)
 endfunction : do_unpack
 
 
@@ -152,10 +179,10 @@ function string axi_tx::convert2string();
                "data = %p\n", "byte_en = %p\n", "burst_len_m1 = 'h%0h  'd%0d\n",
                "burst_size_log2 = 'h%0h  'd%0d\n", "burst_type = 'h%0h  'd%0d\n",
                "lock = 'h%0h  'd%0d\n", "cache = 'h%0h  'd%0d\n", "prot = 'h%0h  'd%0d\n",
-               "qos = 'h%0h  'd%0d\n", "region = 'h%0h  'd%0d\n"}, get_full_name(), rwb, rwb, id,
-           id, addr, addr, data, byte_en, burst_len_m1, burst_len_m1, burst_size_log2,
-           burst_size_log2, burst_type, burst_type, lock, lock, cache, cache, prot, prot, qos, qos,
-           region, region);
+               "qos = 'h%0h  'd%0d\n", "region = 'h%0h  'd%0d\n", "resp = 'h%0h  'd%0d\n"},
+           get_full_name(), rwb, rwb, id, id, addr, addr, data, byte_en, burst_len_m1,
+           burst_len_m1, burst_size_log2, burst_size_log2, burst_type, burst_type, lock, lock,
+           cache, cache, prot, prot, qos, qos, region, region, resp, resp);
   return s;
 endfunction : convert2string
 

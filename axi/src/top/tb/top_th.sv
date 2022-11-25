@@ -4,13 +4,13 @@ module top_th;
 
 
   logic clk = 0;
-  logic rst;
+  logic rstn;
 
   always #10 clk = ~clk;
 
   initial begin
-    rst = 0;
-    #75 rst = 1;
+    rstn = 0;
+    #75 rstn = 1;
   end
 
   axi_if axi_master_if ();
@@ -22,8 +22,8 @@ module top_th;
   // global
   assign axi_master_if.ACLK    = clk;
   assign axi_slave_if.ACLK     = clk;
-  assign axi_master_if.ARESETn = !rst;
-  assign axi_slave_if.ARESETn  = !rst;
+  assign axi_master_if.ARESETn = rstn;
+  assign axi_slave_if.ARESETn  = rstn;
   // write address
   assign axi_slave_if.AWID     = axi_master_if.AWID;
   assign axi_slave_if.AWADDR   = axi_master_if.AWADDR;

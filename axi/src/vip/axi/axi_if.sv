@@ -26,7 +26,7 @@ interface axi_if ();
   // write data
   wire [AXI_ID_WIDTH-1:0]   WID;      // AXI3 only
   wire [AXI_DATA_WIDTH-1:0] WDATA;
-  wire                      WSTRB;
+  wire [AXI_STRB_WIDTH-1:0] WSTRB;
   wire                      WLAST;
   wire                      WVALID;
   wire                      WREADY;
