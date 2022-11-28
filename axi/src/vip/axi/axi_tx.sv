@@ -38,11 +38,8 @@ class axi_tx extends uvm_sequence_item;
     data.size() == burst_len_m1 + 1;
     byte_en.size() == burst_len_m1 + 1;
     // FIXME: support 1 beat of 32b for now @0x0
-    addr == 0;
     burst_len_m1 == 0;
     burst_size_log2 == 'b101;
-    id == 0;
-    rwb == 0;
     // FIXME: to be implemented
     lock == 0;
     cache == 0;

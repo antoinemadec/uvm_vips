@@ -23,8 +23,6 @@ class axi_master_driver extends axi_driver;
   extern task do_read_cmd();
 
   // utils
-  extern task wait_on_queue(ref axi_tx q_from_id[int][$]);
-  extern function int get_available_id(ref axi_tx q_from_id[int][$]);
   extern task set_aw_data_signals_to_X();
   extern task set_w_data_signals_to_X();
   extern task set_ar_data_signals_to_X();
@@ -85,10 +83,11 @@ task axi_master_driver::do_write_cmd();
   forever begin
     int id;
     axi_tx tx;
-    wait_on_queue(m_write_cmd_q_from_id);
 
+    wait_on_queue(m_write_cmd_q_from_id);
     id = get_available_id(m_write_cmd_q_from_id);
     tx = m_write_cmd_q_from_id[id].pop_front();
+
     vif.cb_drv_m.AWVALID  <= 1;
     vif.cb_drv_m.AWID     <= id;
     vif.cb_drv_m.AWADDR   <= tx.addr;
@@ -116,10 +115,11 @@ task axi_master_driver::do_write_data();
   forever begin
     int id;
     axi_tx tx;
-    wait_on_queue(m_write_data_q_from_id);
 
+    wait_on_queue(m_write_data_q_from_id);
     id = get_available_id(m_write_data_q_from_id);
     tx = m_write_data_q_from_id[id].pop_front();
+
     vif.cb_drv_m.WVALID <= 1;
     vif.cb_drv_m.WID    <= id;
     vif.cb_drv_m.WDATA  <= tx.data[0];
@@ -139,6 +139,7 @@ endtask : do_write_data
 task axi_master_driver::do_write_rsp();
   forever begin
     axi_tx tx;
+
     wait_on_queue(m_write_resp_q_from_id);
 
     vif.cb_drv_m.BREADY <= 1;
@@ -157,10 +158,11 @@ task axi_master_driver::do_read_cmd();
   forever begin
     int id;
     axi_tx tx;
-    wait_on_queue(m_read_cmd_q_from_id);
 
+    wait_on_queue(m_read_cmd_q_from_id);
     id = get_available_id(m_read_cmd_q_from_id);
     tx = m_read_cmd_q_from_id[id].pop_front();
+
     vif.cb_drv_m.ARVALID  <= 1;
     vif.cb_drv_m.ARID     <= id;
     vif.cb_drv_m.ARADDR   <= tx.addr;
@@ -186,6 +188,7 @@ endtask : do_read_cmd
 task axi_master_driver::do_read_data();
   forever begin
     axi_tx tx;
+
     wait_on_queue(m_read_data_q_from_id);
 
     vif.cb_drv_m.RREADY <= 1;
@@ -200,18 +203,6 @@ task axi_master_driver::do_read_data();
     seq_item_port.put(tx);
   end
 endtask : do_read_data
-
-
-task axi_master_driver::wait_on_queue(ref axi_tx q_from_id[int][$]);
-  wait ((q_from_id.sum with (int'(item.size()))) > 0);
-endtask : wait_on_queue
-
-
-function int axi_master_driver::get_available_id(ref axi_tx q_from_id[int][$]);
-  int available_ids[$];
-  available_ids = q_from_id.find_index with (item.size() > 0);
-  return available_ids[$urandom_range(available_ids.size()-1)];
-endfunction : get_available_id
 
 
 task axi_master_driver::set_aw_data_signals_to_X();

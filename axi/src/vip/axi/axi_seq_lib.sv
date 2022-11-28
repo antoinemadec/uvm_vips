@@ -22,8 +22,25 @@ task axi_default_seq::body();
   `uvm_info(get_type_name(), "Default sequence starting", UVM_HIGH)
 
   req = axi_tx::type_id::create("req");
+
+  // write
   start_item(req);
-  if (!req.randomize()) `uvm_fatal(get_type_name(), "Failed to randomize transaction")
+  if (!req.randomize() with {
+    rwb == 0;
+    addr == 0;
+    data[0] == 'hdeadbeef;
+    id == 0;
+  }) `uvm_fatal(get_type_name(), "Failed to randomize transaction")
+  finish_item(req);
+  get_response(rsp, req.get_transaction_id());
+
+  // read
+  start_item(req);
+  if (!req.randomize() with {
+    rwb == 1;
+    addr == 0;
+    id == 0;
+  }) `uvm_fatal(get_type_name(), "Failed to randomize transaction")
   finish_item(req);
   get_response(rsp, req.get_transaction_id());
 

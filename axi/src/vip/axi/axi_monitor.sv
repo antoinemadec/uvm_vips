@@ -18,7 +18,7 @@ class axi_monitor extends uvm_monitor;
 
   extern function new(string name, uvm_component parent);
 
-  // run_phase
+  // run phase funtions
   extern task run_phase(uvm_phase phase);
   extern task do_write_cmd();
   extern task do_write_data();
