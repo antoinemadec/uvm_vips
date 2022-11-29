@@ -9,13 +9,20 @@ class axi_slave_driver extends axi_driver;
 
   bit [AXI_DATA_WIDTH-1:0] mem[*];
 
-  axi_tx m_write_cmd_q_from_id[int] [$];
+  // tx: received from the sequencer
+  axi_tx m_write_cmd_delays[$];
+  axi_tx m_write_data_delays[$];
+  axi_tx m_read_cmd_delays[$];
+
+  // tx: for internal storage
+  axi_tx m_write_cmd_q_from_id[int][$];
   axi_tx m_wdata_from_id[int];
   axi_tx m_write_resp_q_from_id[int][$];
-  axi_tx m_read_cmd_q_from_id[int]  [$];
+  axi_tx m_read_cmd_q_from_id[int][$];
 
   // run phase funtions
   extern task run_phase(uvm_phase phase);
+  extern task get_tx_items();
   extern task do_write_cmd();
   extern task do_write_data();
   extern task do_write_rsp();
@@ -50,6 +57,7 @@ task axi_slave_driver::run_phase(uvm_phase phase);
   while (vif.cb_drv_s.ARESETn !== 1) @(vif.cb_drv_s);
 
   fork
+    get_tx_items();
     do_write_cmd();
     do_write_data();
     do_write_rsp();
@@ -59,16 +67,37 @@ task axi_slave_driver::run_phase(uvm_phase phase);
 endtask : run_phase
 
 
+task axi_slave_driver::get_tx_items();
+  forever begin
+    axi_tx req_copy;
+    seq_item_port.get(req);
+    `uvm_info(get_type_name(), {"req item\n", req.sprint}, UVM_DEBUG)
+    req_copy = axi_tx::type_id::create("req_copy");
+    req_copy.set_id_info(req);
+    req_copy.do_copy(req);
+    if (req.rwb == 0) begin
+      m_write_cmd_delays.push_back(req_copy);
+      m_write_data_delays.push_back(req_copy);
+    end else begin
+      m_read_cmd_delays.push_back(req_copy);
+    end
+  end
+endtask : get_tx_items
+
+
 task axi_slave_driver::do_write_cmd();
   forever begin
     axi_tx tx;
+
+    wait (m_write_cmd_delays.size() > 0);
+    tx = m_write_cmd_delays.pop_front();
+    repeat (tx.delay_aw) @(vif.cb_drv_s);
 
     vif.cb_drv_s.AWREADY <= 1;
     @(vif.cb_drv_s);
     while (vif.cb_drv_s.AWVALID !== 1) @(vif.cb_drv_s);
 
     vif.cb_drv_s.AWREADY <= 0;
-    tx = axi_tx::type_id::create("tx");
     tx.rwb             = 0;
     tx.id              = vif.cb_drv_s.AWID;
     tx.addr            = vif.cb_drv_s.AWADDR;
@@ -90,10 +119,15 @@ endtask : do_write_cmd
 task axi_slave_driver::do_write_data();
   forever begin
     int id;
+    axi_tx tx;
+
+    wait (m_write_data_delays.size() > 0);
+    tx = m_write_data_delays.pop_front();
+    repeat (tx.delay_w) @(vif.cb_drv_s);
 
     vif.cb_drv_s.WREADY <= 1;
     @(vif.cb_drv_s);
-    while (vif.cb_drv_s.WVALID !==1) @(vif.cb_drv_s);
+    while (vif.cb_drv_s.WVALID !== 1) @(vif.cb_drv_s);
 
     vif.cb_drv_s.WREADY <= 0;
     id = vif.cb_drv_s.WID;
@@ -109,12 +143,13 @@ endtask : do_write_data
 
 task axi_slave_driver::do_write_rsp();
   forever begin
-    axi_tx tx;
     int id;
+    axi_tx tx;
 
-    wait_on_queue(m_write_resp_q_from_id);
+    wait_on_queues(m_write_resp_q_from_id);
     id = get_available_id(m_write_resp_q_from_id);
     tx = m_write_resp_q_from_id[id].pop_front();
+    repeat (tx.delay_b) @(vif.cb_drv_s);
     mem[tx.addr] = tx.data[0];
 
     vif.cb_drv_s.BVALID <= 1;
@@ -125,6 +160,7 @@ task axi_slave_driver::do_write_rsp();
 
     vif.cb_drv_s.BVALID <= 0;
     set_b_data_signals_to_X();
+    seq_item_port.put(tx);
   end
 endtask : do_write_rsp
 
@@ -134,12 +170,15 @@ task axi_slave_driver::do_read_cmd();
     int id;
     axi_tx tx;
 
+    wait (m_read_cmd_delays.size() > 0);
+    tx = m_read_cmd_delays.pop_front();
+    repeat (tx.delay_ar) @(vif.cb_drv_s);
+
     vif.cb_drv_s.ARREADY <= 1;
     @(vif.cb_drv_s);
-    while (vif.cb_drv_s.ARVALID !==1) @(vif.cb_drv_s);
+    while (vif.cb_drv_s.ARVALID !== 1) @(vif.cb_drv_s);
 
     vif.cb_drv_s.ARREADY <= 0;
-    tx = axi_tx::type_id::create("tx");
     tx.rwb             = 1;
     tx.id              = vif.cb_drv_s.ARID;
     tx.addr            = vif.cb_drv_s.ARADDR;
@@ -159,12 +198,13 @@ endtask : do_read_cmd
 // FIXME: handle multiple beats
 task axi_slave_driver::do_read_data();
   forever begin
-    axi_tx tx;
     int id;
+    axi_tx tx;
 
-    wait_on_queue(m_read_cmd_q_from_id);
+    wait_on_queues(m_read_cmd_q_from_id);
     id = get_available_id(m_read_cmd_q_from_id);
     tx = m_read_cmd_q_from_id[id].pop_front();
+    repeat (tx.delay_r) @(vif.cb_drv_s);
 
     vif.cb_drv_s.RVALID <= 1;
     vif.cb_drv_s.RID    <= id;
@@ -176,21 +216,22 @@ task axi_slave_driver::do_read_data();
 
     vif.cb_drv_s.RVALID <= 0;
     set_r_data_signals_to_X();
+    seq_item_port.put(tx);
   end
 endtask : do_read_data
 
 
 task axi_slave_driver::set_b_data_signals_to_X();
-    vif.cb_drv_s.BID <= 'hx;
-    vif.cb_drv_s.BRESP <= 'hx;
+  vif.cb_drv_s.BID   <= 'hx;
+  vif.cb_drv_s.BRESP <= 'hx;
 endtask : set_b_data_signals_to_X
 
 
 task axi_slave_driver::set_r_data_signals_to_X();
-    vif.cb_drv_s.RID <= 'hx;
-    vif.cb_drv_s.RDATA <= {AXI_DATA_WIDTH{1'bx}};
-    vif.cb_drv_s.RRESP <= 'hx;
-    vif.cb_drv_s.RLAST <= 'hx;
+  vif.cb_drv_s.RID   <= 'hx;
+  vif.cb_drv_s.RDATA <= {AXI_DATA_WIDTH{1'bx}};
+  vif.cb_drv_s.RRESP <= 'hx;
+  vif.cb_drv_s.RLAST <= 'hx;
 endtask : set_r_data_signals_to_X
 
 

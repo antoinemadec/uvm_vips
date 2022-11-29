@@ -10,7 +10,7 @@ class axi_driver extends uvm_driver #(axi_tx);
   axi_config m_config;
 
   extern function new(string name, uvm_component parent);
-  extern task wait_on_queue(ref axi_tx q_from_id[int][$]);
+  extern task wait_on_queues(ref axi_tx q_from_id[int][$]);
   extern function int get_available_id(ref axi_tx q_from_id[int][$]);
 endclass : axi_driver
 
@@ -20,9 +20,9 @@ function axi_driver::new(string name, uvm_component parent);
 endfunction : new
 
 
-task axi_driver::wait_on_queue(ref axi_tx q_from_id[int][$]);
+task axi_driver::wait_on_queues(ref axi_tx q_from_id[int][$]);
   wait ((q_from_id.sum with (int'(item.size()))) > 0);
-endtask : wait_on_queue
+endtask : wait_on_queues
 
 
 function int axi_driver::get_available_id(ref axi_tx q_from_id[int][$]);

@@ -7,6 +7,8 @@ class axi_default_seq extends uvm_sequence #(axi_tx);
 
   axi_config m_config;
 
+  rand axi_tx tx;
+
   extern function new(string name = "");
   extern task body();
 
@@ -15,34 +17,16 @@ endclass : axi_default_seq
 
 function axi_default_seq::new(string name = "");
   super.new(name);
+  tx = axi_tx::type_id::create("tx");
 endfunction : new
 
 
 task axi_default_seq::body();
   `uvm_info(get_type_name(), "Default sequence starting", UVM_HIGH)
 
-  req = axi_tx::type_id::create("req");
-
-  // write
-  start_item(req);
-  if (!req.randomize() with {
-    rwb == 0;
-    addr == 0;
-    data[0] == 'hdeadbeef;
-    id == 0;
-  }) `uvm_fatal(get_type_name(), "Failed to randomize transaction")
-  finish_item(req);
-  get_response(rsp, req.get_transaction_id());
-
-  // read
-  start_item(req);
-  if (!req.randomize() with {
-    rwb == 1;
-    addr == 0;
-    id == 0;
-  }) `uvm_fatal(get_type_name(), "Failed to randomize transaction")
-  finish_item(req);
-  get_response(rsp, req.get_transaction_id());
+  start_item(tx);
+  finish_item(tx);
+  get_response(rsp, tx.get_transaction_id());
 
   `uvm_info(get_type_name(), "Default sequence completed", UVM_HIGH)
 endtask : body

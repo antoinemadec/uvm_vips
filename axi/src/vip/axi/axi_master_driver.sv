@@ -11,6 +11,11 @@ class axi_master_driver extends axi_driver;
   axi_tx m_read_cmd_q_from_id[int]  [$];
   axi_tx m_read_data_q_from_id[int] [$];
 
+  // cannot predict which ID RDATA and BRESP are going to use,
+  // instead, we save the delays of the latest command
+  int m_delay_b;
+  int m_delay_r;
+
   extern function new(string name, uvm_component parent);
 
   // run phase funtions
@@ -84,9 +89,10 @@ task axi_master_driver::do_write_cmd();
     int id;
     axi_tx tx;
 
-    wait_on_queue(m_write_cmd_q_from_id);
+    wait_on_queues(m_write_cmd_q_from_id);
     id = get_available_id(m_write_cmd_q_from_id);
     tx = m_write_cmd_q_from_id[id].pop_front();
+    repeat (tx.delay_aw) @(vif.cb_drv_m);
 
     vif.cb_drv_m.AWVALID  <= 1;
     vif.cb_drv_m.AWID     <= id;
@@ -116,9 +122,10 @@ task axi_master_driver::do_write_data();
     int id;
     axi_tx tx;
 
-    wait_on_queue(m_write_data_q_from_id);
+    wait_on_queues(m_write_data_q_from_id);
     id = get_available_id(m_write_data_q_from_id);
     tx = m_write_data_q_from_id[id].pop_front();
+    repeat (tx.delay_w) @(vif.cb_drv_m);
 
     vif.cb_drv_m.WVALID <= 1;
     vif.cb_drv_m.WID    <= id;
@@ -140,7 +147,8 @@ task axi_master_driver::do_write_rsp();
   forever begin
     axi_tx tx;
 
-    wait_on_queue(m_write_resp_q_from_id);
+    wait_on_queues(m_write_resp_q_from_id);
+    repeat (m_delay_b) @(vif.cb_drv_m);
 
     vif.cb_drv_m.BREADY <= 1;
     @(vif.cb_drv_m);
@@ -159,9 +167,11 @@ task axi_master_driver::do_read_cmd();
     int id;
     axi_tx tx;
 
-    wait_on_queue(m_read_cmd_q_from_id);
+    wait_on_queues(m_read_cmd_q_from_id);
     id = get_available_id(m_read_cmd_q_from_id);
     tx = m_read_cmd_q_from_id[id].pop_front();
+    m_delay_r = tx.delay_r;
+    repeat (tx.delay_ar) @(vif.cb_drv_m);
 
     vif.cb_drv_m.ARVALID  <= 1;
     vif.cb_drv_m.ARID     <= id;
@@ -189,7 +199,8 @@ task axi_master_driver::do_read_data();
   forever begin
     axi_tx tx;
 
-    wait_on_queue(m_read_data_q_from_id);
+    wait_on_queues(m_read_data_q_from_id);
+    repeat (m_delay_r) @(vif.cb_drv_m);
 
     vif.cb_drv_m.RREADY <= 1;
     @(vif.cb_drv_m);
@@ -244,6 +255,7 @@ endtask : set_ar_data_signals_to_X
 function void axi_master_driver::check_write_tx_has_been_issued(axi_tx tx);
   if (tx.write_cmd_has_been_sent && tx.write_data_has_been_sent) begin
     m_write_resp_q_from_id[tx.id].push_back(tx);
+    m_delay_b = tx.delay_b;
   end
 endfunction : check_write_tx_has_been_issued
 

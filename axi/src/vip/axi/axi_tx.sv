@@ -21,10 +21,20 @@ class axi_tx extends uvm_sequence_item;
   rand bit [3:0] region;  // AXI4 only
   rand bit [1:0] resp;
 
-  // monitor/driver attributes
-  bit write_cmd_has_been_sent = 0;
-  bit write_data_has_been_sent = 0;
+  // delays
+  extern function int rate_to_delay(int rate);
+  rand int rate_aw;
+  rand int rate_w;
+  rand int rate_b;
+  rand int rate_ar;
+  rand int rate_r;
+  int delay_aw;
+  int delay_w;
+  int delay_b;
+  int delay_ar;
+  int delay_r;
 
+  // uvm functions
   extern function new(string name = "");
   extern function void do_copy(uvm_object rhs);
   extern function bit do_compare(uvm_object rhs, uvm_comparer comparer);
@@ -34,12 +44,16 @@ class axi_tx extends uvm_sequence_item;
   extern function void do_unpack(uvm_packer packer);
   extern function string convert2string();
 
+  // monitor/driver attributes
+  bit write_cmd_has_been_sent = 0;
+  bit write_data_has_been_sent = 0;
+
+  // constraints
   constraint main_c {
     data.size() == burst_len_m1 + 1;
     byte_en.size() == burst_len_m1 + 1;
     // FIXME: support 1 beat of 32b for now @0x0
-    burst_len_m1 == 0;
-    burst_size_log2 == 'b101;
+    addr == 0;
     // FIXME: to be implemented
     lock == 0;
     cache == 0;
@@ -48,6 +62,22 @@ class axi_tx extends uvm_sequence_item;
     region == 0;
     resp == 0;
   }
+
+  constraint delay_c {
+    rate_aw inside {[1:100]};
+    rate_w  inside {[1:100]};
+    rate_b  inside {[1:100]};
+    rate_ar inside {[1:100]};
+    rate_r  inside {[1:100]};
+  }
+
+  function void post_randomize();
+    delay_aw = rate_to_delay(rate_aw);
+    delay_w = rate_to_delay(rate_w);
+    delay_b = rate_to_delay(rate_b);
+    delay_ar = rate_to_delay(rate_ar);
+    delay_r = rate_to_delay(rate_r);
+  endfunction
 
 endclass : axi_tx
 
@@ -75,6 +105,16 @@ function void axi_tx::do_copy(uvm_object rhs);
   qos = rhs_.qos;
   region = rhs_.region;
   resp = rhs_.resp;
+  rate_aw = rhs_.rate_aw;
+  rate_w = rhs_.rate_w;
+  rate_b = rhs_.rate_b;
+  rate_ar = rhs_.rate_ar;
+  rate_r = rhs_.rate_r;
+  delay_aw = rhs_.delay_aw;
+  delay_w = rhs_.delay_w;
+  delay_b = rhs_.delay_b;
+  delay_ar = rhs_.delay_ar;
+  delay_r = rhs_.delay_r;
 endfunction : do_copy
 
 
@@ -182,6 +222,22 @@ function string axi_tx::convert2string();
            cache, cache, prot, prot, qos, qos, region, region, resp, resp);
   return s;
 endfunction : convert2string
+
+
+function int axi_tx::rate_to_delay(int rate);
+  int delay;
+  int r;
+  if ((rate > 100) || (rate < 0)) begin
+    `uvm_fatal(get_type_name(), $sformatf("rate=%0d is invalid.", rate))
+  end
+  delay = 0;
+  r = $urandom_range(100, 1);
+  while (r > rate) begin
+    r = $urandom_range(100, 1);
+    delay++;
+  end
+  return delay;
+endfunction : rate_to_delay
 
 
 `endif  // AXI_SEQ_ITEM_SV
