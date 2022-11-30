@@ -4,10 +4,10 @@ package axi_pkg;
 
   import uvm_pkg::*;
 
-  parameter int AXI_ID_WIDTH   = 4;
+  parameter int AXI_ID_WIDTH = 4;
   parameter int AXI_ADDR_WIDTH = 32;
   parameter int AXI_DATA_WIDTH = 32;
-  parameter int AXI_STRB_WIDTH = AXI_DATA_WIDTH>>3;
+  parameter int AXI_STRB_WIDTH = AXI_DATA_WIDTH >> 3;
 
   `include "axi_tx.sv"
   `include "axi_config.sv"

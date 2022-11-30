@@ -57,9 +57,8 @@ task top_default_seq::run_slave();
           axi_default_seq seq;
           seq = axi_default_seq::type_id::create("seq");
           seq.set_item_context(this, m_axi_slave_agent.m_sequencer);
-          if (!seq.randomize() with {
-            tx.rwb == rwb_auto;
-          }) `uvm_fatal(get_type_name(), "Failed to randomize sequence")
+          if (!seq.randomize() with {tx.rwb == rwb_auto;})
+            `uvm_fatal(get_type_name(), "Failed to randomize sequence")
           seq.m_config = m_axi_slave_agent.m_config;
           seq.set_starting_phase(get_starting_phase());
           seq.start(m_axi_slave_agent.m_sequencer, this);

@@ -5,7 +5,7 @@ class axi_default_seq extends uvm_sequence #(axi_tx);
 
   `uvm_object_utils(axi_default_seq)
 
-  axi_config m_config;
+  axi_config  m_config;
 
   rand axi_tx tx;
 

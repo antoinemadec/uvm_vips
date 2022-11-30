@@ -70,8 +70,7 @@ module top_th;
   assign axi_master_if.RVALID  = axi_slave_if.RVALID;
   assign axi_slave_if.RREADY   = axi_master_if.RREADY;
 
- initial
-  begin
+  initial begin
     // simvision
     $shm_open("waves.shm");
     $shm_probe("ACMTF");

@@ -251,8 +251,10 @@ endtask : set_r_data_signals_to_X
 
 
 function void axi_slave_driver::update_write_resp_q(int id, bit wlast);
+  // verilog_format: off  // better alignment than the tool's
   if (!queue_is_empty(m_write_cmd_q_from_id, id) &&
     m_wdata_from_id.exists(id) && m_wdata_from_id[id].data.size() > 0) begin
+  // verilog_format: on
     axi_tx tx;
     tx = m_write_cmd_q_from_id[id][0];
     tx.data.push_back(m_wdata_from_id[id].data.pop_front());

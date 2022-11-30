@@ -11,10 +11,10 @@ class axi_monitor extends uvm_monitor;
 
   uvm_analysis_port #(axi_tx) analysis_port;
 
-  axi_tx m_write_cmd_q_from_id[int] [$];
+  axi_tx m_write_cmd_q_from_id[int][$];
   axi_tx m_wdata_from_id[int];
   axi_tx m_write_resp_q_from_id[int][$];
-  axi_tx m_read_cmd_q_from_id[int]  [$];
+  axi_tx m_read_cmd_q_from_id[int][$];
 
   extern function new(string name, uvm_component parent);
 
@@ -59,9 +59,9 @@ task axi_monitor::do_write_cmd();
     axi_tx tx;
 
     @(vif.cb_mon);
-    while (vif.cb_mon.AWREADY !== 1 || vif.cb_mon.AWVALID !==1) @(vif.cb_mon);
+    while (vif.cb_mon.AWREADY !== 1 || vif.cb_mon.AWVALID !== 1) @(vif.cb_mon);
 
-    tx = axi_tx::type_id::create("tx");
+    tx                 = axi_tx::type_id::create("tx");
     tx.rwb             = 0;
     tx.id              = vif.cb_mon.AWID;
     tx.addr            = vif.cb_mon.AWADDR;
@@ -85,7 +85,7 @@ task axi_monitor::do_write_data();
     int id;
 
     @(vif.cb_mon);
-    while (vif.cb_mon.WREADY !== 1 || vif.cb_mon.WVALID !==1) @(vif.cb_mon);
+    while (vif.cb_mon.WREADY !== 1 || vif.cb_mon.WVALID !== 1) @(vif.cb_mon);
 
     id = vif.cb_mon.WID;
     if (!m_wdata_from_id.exists(id)) begin
@@ -104,7 +104,7 @@ task axi_monitor::do_write_rsp();
     int id;
 
     @(vif.cb_mon);
-    while (vif.cb_mon.BREADY !== 1 || vif.cb_mon.BVALID !==1) @(vif.cb_mon);
+    while (vif.cb_mon.BREADY !== 1 || vif.cb_mon.BVALID !== 1) @(vif.cb_mon);
 
     id = vif.cb_mon.BID;
     if (queue_is_empty(m_write_resp_q_from_id, id)) begin
@@ -122,9 +122,9 @@ task axi_monitor::do_read_cmd();
     axi_tx tx;
 
     @(vif.cb_mon);
-    while (vif.cb_mon.ARREADY !== 1 || vif.cb_mon.ARVALID !==1) @(vif.cb_mon);
+    while (vif.cb_mon.ARREADY !== 1 || vif.cb_mon.ARVALID !== 1) @(vif.cb_mon);
 
-    tx = axi_tx::type_id::create("tx");
+    tx                 = axi_tx::type_id::create("tx");
     tx.rwb             = 1;
     tx.id              = vif.cb_mon.ARID;
     tx.addr            = vif.cb_mon.ARADDR;
@@ -147,7 +147,7 @@ task axi_monitor::do_read_data();
     axi_tx tx;
 
     @(vif.cb_mon);
-    while (vif.cb_mon.RREADY !== 1 || vif.cb_mon.RVALID !==1) @(vif.cb_mon);
+    while (vif.cb_mon.RREADY !== 1 || vif.cb_mon.RVALID !== 1) @(vif.cb_mon);
 
     id = vif.cb_mon.RID;
     if (queue_is_empty(m_read_cmd_q_from_id, id)) begin
@@ -166,8 +166,10 @@ endtask : do_read_data
 
 
 function void axi_monitor::update_write_resp_q(int id, bit wlast);
+  // verilog_format: off  // better alignment than the tool's
   if (!queue_is_empty(m_write_cmd_q_from_id, id) &&
     m_wdata_from_id.exists(id) && m_wdata_from_id[id].data.size() > 0) begin
+  // verilog_format: on
     axi_tx tx;
     tx = m_write_cmd_q_from_id[id][0];
     tx.data.push_back(m_wdata_from_id[id].data.pop_front());

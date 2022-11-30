@@ -28,26 +28,22 @@ class axi_tx extends uvm_sequence_item;
   rand int rate_b;
   rand int rate_ar;
   rand int rate_r;
-  int delay_aw;
-  int delay_w;
-  int delay_b;
-  int delay_ar;
-  int delay_r;
+  int      delay_aw;
+  int      delay_w;
+  int      delay_b;
+  int      delay_ar;
+  int      delay_r;
 
   // monitor/driver attributes
-  bit is_master                = 0;
-  bit write_cmd_has_been_sent  = 0;
-  bit write_data_has_been_sent = 0;
+  bit      is_master                = 0;
+  bit      write_cmd_has_been_sent  = 0;
+  bit      write_data_has_been_sent = 0;
 
   // constraints
   constraint main_c {
-    data.size()    == burst_len_m1 + 1;
+    data.size() == burst_len_m1 + 1;
     byte_en.size() == data.size();
-    if (rwb) {
-      resp.size() == data.size();
-    } else {
-      resp.size() == 1;
-    }
+    if (rwb) {resp.size() == data.size();} else {resp.size() == 1;}
 
     // FIXME
     burst_type == 0;
@@ -60,29 +56,26 @@ class axi_tx extends uvm_sequence_item;
   }
 
   constraint delay_c {
-    rate_aw inside {[1:100]};
-    rate_w  inside {[1:100]};
-    rate_b  inside {[1:100]};
-    rate_ar inside {[1:100]};
-    rate_r  inside {[1:100]};
+    rate_aw inside {[1 : 100]};
+    rate_w inside {[1 : 100]};
+    rate_b inside {[1 : 100]};
+    rate_ar inside {[1 : 100]};
+    rate_r inside {[1 : 100]};
   }
 
   function void post_randomize();
     delay_aw = rate_to_delay(rate_aw);
-    delay_w = rate_to_delay(rate_w);
-    delay_b = rate_to_delay(rate_b);
+    delay_w  = rate_to_delay(rate_w);
+    delay_b  = rate_to_delay(rate_b);
     delay_ar = rate_to_delay(rate_ar);
-    delay_r = rate_to_delay(rate_r);
+    delay_r  = rate_to_delay(rate_r);
   endfunction
 
   // protocol functions
-  extern function bit[AXI_ADDR_WIDTH-1:0] get_nth_addr(int n);
-  extern static function string print_one_beat(
-    bit _rwb,
-    bit [AXI_ADDR_WIDTH-1:0] _addr,
-    bit [AXI_DATA_WIDTH-1:0] _data,
-    bit [AXI_STRB_WIDTH-1:0] _byte_en
-  );
+  extern function bit [AXI_ADDR_WIDTH-1:0] get_nth_addr(int n);
+  extern static function string print_one_beat(bit _rwb, bit [AXI_ADDR_WIDTH-1:0] _addr,
+                                               bit [AXI_DATA_WIDTH-1:0] _data,
+                                               bit [AXI_STRB_WIDTH-1:0] _byte_en);
   extern function string print_nth_beat(int n);
 
   // uvm functions
@@ -145,8 +138,7 @@ function bit axi_tx::do_compare(uvm_object rhs, uvm_comparer comparer);
   foreach (data[i]) result &= comparer.compare_field("data", data[i], rhs_.data[i], $bits(data[i]));
   foreach (byte_en[i])
     result &= comparer.compare_field("byte_en", byte_en[i], rhs_.byte_en[i], $bits(byte_en[i]));
-  foreach (resp[i])
-    result &= comparer.compare_field("resp", resp[i], rhs_.resp[i], $bits(resp[i]));
+  foreach (resp[i]) result &= comparer.compare_field("resp", resp[i], rhs_.resp[i], $bits(resp[i]));
   result &= comparer.compare_field(
       "burst_len_m1", burst_len_m1, rhs_.burst_len_m1, $bits(burst_len_m1)
   );
@@ -233,10 +225,10 @@ function string axi_tx::convert2string();
                "data = %p\n", "byte_en = %p\n", "resp = %p\n", "burst_len_m1 = 'h%0h  'd%0d\n",
                "burst_size_log2 = 'h%0h  'd%0d\n", "burst_type = 'h%0h  'd%0d\n",
                "lock = 'h%0h  'd%0d\n", "cache = 'h%0h  'd%0d\n", "prot = 'h%0h  'd%0d\n",
-               "qos = 'h%0h  'd%0d\n", "region = 'h%0h  'd%0d\n"},
-           get_full_name(), rwb, rwb, id, id, addr, addr, data, byte_en, resp, burst_len_m1,
-           burst_len_m1, burst_size_log2, burst_size_log2, burst_type, burst_type, lock, lock,
-           cache, cache, prot, prot, qos, qos, region, region);
+               "qos = 'h%0h  'd%0d\n", "region = 'h%0h  'd%0d\n"}, get_full_name(), rwb, rwb, id,
+           id, addr, addr, data, byte_en, resp, burst_len_m1, burst_len_m1, burst_size_log2,
+           burst_size_log2, burst_type, burst_type, lock, lock, cache, cache, prot, prot, qos, qos,
+           region, region);
   return s;
 endfunction : convert2string
 
@@ -257,18 +249,15 @@ function int axi_tx::rate_to_delay(int rate);
 endfunction : rate_to_delay
 
 
-function bit[AXI_ADDR_WIDTH-1:0] axi_tx::get_nth_addr(int n);
-  assert(burst_type == 0);
+function bit [AXI_ADDR_WIDTH-1:0] axi_tx::get_nth_addr(int n);
+  assert (burst_type == 0);
   return addr + (n * $clog2(AXI_DATA_WIDTH));
 endfunction
 
 
-function string axi_tx::print_one_beat(
-  bit _rwb,
-  bit [AXI_ADDR_WIDTH-1:0] _addr,
-  bit [AXI_DATA_WIDTH-1:0] _data,
-  bit [AXI_STRB_WIDTH-1:0] _byte_en
-);
+function string axi_tx::print_one_beat(bit _rwb, bit [AXI_ADDR_WIDTH-1:0] _addr,
+                                       bit [AXI_DATA_WIDTH-1:0] _data,
+                                       bit [AXI_STRB_WIDTH-1:0] _byte_en);
   string str_data;
   str_data = $sformatf("%x", _data);
   foreach (_byte_en[i]) begin
@@ -279,18 +268,13 @@ function string axi_tx::print_one_beat(
       str_data[2*j+1] = ".";
     end
   end
-  return $sformatf("0x%s %s [0x%x]", str_data, _rwb ? "<-":"->", _addr);
+  return $sformatf("0x%s %s [0x%x]", str_data, _rwb ? "<-" : "->", _addr);
 endfunction
 
 
 function string axi_tx::print_nth_beat(int n);
   return {
-    print_one_beat(
-      ._rwb     (rwb            ),
-      ._addr    (get_nth_addr(n)),
-      ._data    (data[n]        ),
-      ._byte_en (byte_en[n]     )
-    ),
+    print_one_beat(._rwb(rwb), ._addr(get_nth_addr(n)), ._data(data[n]), ._byte_en(byte_en[n])),
     $sformatf(" (%0d/%0d)", n, burst_len_m1)
   };
 endfunction
