@@ -12,6 +12,8 @@ class top_scoreboard extends uvm_scoreboard;
 
   top_config m_config;
 
+  bit [7:0] m_mem[*];
+
   function new(string name, uvm_component parent);
     super.new(name, parent);
     if (!uvm_config_db#(top_config)::get(this, "", "config", m_config))
@@ -21,9 +23,46 @@ class top_scoreboard extends uvm_scoreboard;
   endfunction : new
 
 
+  function void write_tx_in_mem(axi_tx tx);
+    foreach (tx.data[beat_idx]) begin
+      bit [AXI_ADDR_WIDTH-1:0] addr;
+      addr = tx.get_nth_addr(beat_idx);
+      for (int byte_idx = 0; byte_idx < AXI_STRB_WIDTH; byte_idx++) begin
+        if (tx.byte_en[beat_idx][byte_idx]) begin
+          m_mem[addr+byte_idx] = (tx.data[beat_idx] >> byte_idx * 8) & 8'hff;
+        end
+      end
+    end
+  endfunction
+
+
+  function void compare_read_tx_to_mem(axi_tx tx);
+    foreach (tx.data[beat_idx]) begin
+      bit [AXI_ADDR_WIDTH-1:0] addr;
+      addr = tx.get_nth_addr(beat_idx);
+      for (int byte_idx = 0; byte_idx < AXI_STRB_WIDTH; byte_idx++) begin
+        bit [7:0] expected_byte;
+        bit [7:0] actual_byte;
+        expected_byte = m_mem[addr+byte_idx];
+        actual_byte   = tx.data[beat_idx][byte_idx*8+:8];
+        if (expected_byte !== actual_byte) begin
+          `uvm_fatal(get_type_name(), $sformatf("[0x%x] expected data=0x%x but read 0x%x",
+                                                addr + byte_idx, expected_byte, actual_byte))
+        end
+      end
+    end
+  endfunction
+
+
   virtual function void write_from_axi_master(input axi_tx pkt);
     for (int i = 0; i <= pkt.burst_len_m1; i++) begin
       `uvm_info(get_type_name(), pkt.print_nth_beat(i), UVM_LOW)
+    end
+    if (pkt.rwb) begin
+      compare_read_tx_to_mem(pkt);
+    end
+    else begin
+      write_tx_in_mem(pkt);
     end
   endfunction : write_from_axi_master
 

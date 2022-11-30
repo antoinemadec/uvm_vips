@@ -10,7 +10,7 @@ class top_default_seq extends uvm_sequence #(uvm_sequence_item);
   axi_agent m_axi_master_agent;
   axi_agent m_axi_slave_agent;
 
-  int m_seq_count = 4;
+  int m_seq_count = 100;
 
   extern function new(string name = "");
   extern task body();
