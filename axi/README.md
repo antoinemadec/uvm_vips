@@ -26,6 +26,10 @@ TODO
 
 ## 🚧 TODO
   - finish AXI3
+    - fork threads
+    - all bursts
+    - narrow xfer
+    - add slave auto mode
   - implement AXI4
   - improve doc
 

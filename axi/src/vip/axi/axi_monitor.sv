@@ -27,7 +27,7 @@ class axi_monitor extends uvm_monitor;
   extern task do_read_cmd();
 
   // utils
-  extern function void update_write_resp_q(int id);
+  extern function void update_write_resp_q(int id, bit wlast);
   extern function bit queue_is_empty(ref axi_tx q_from_id[int][$], int id);
 
 endclass : axi_monitor
@@ -74,7 +74,7 @@ task axi_monitor::do_write_cmd();
     tx.qos             = vif.cb_mon.AWQOS;
     tx.region          = vif.cb_mon.AWREGION;
     m_write_cmd_q_from_id[tx.id].push_back(tx);
-    update_write_resp_q(tx.id);
+    update_write_resp_q(tx.id, 0);
   end
 endtask : do_write_cmd
 
@@ -93,7 +93,7 @@ task axi_monitor::do_write_data();
     end
     m_wdata_from_id[id].data.push_back(vif.cb_mon.WDATA);
     m_wdata_from_id[id].byte_en.push_back(vif.cb_mon.WSTRB);
-    update_write_resp_q(id);
+    update_write_resp_q(id, vif.cb_mon.WLAST);
   end
 endtask : do_write_data
 
@@ -111,7 +111,7 @@ task axi_monitor::do_write_rsp();
       `uvm_fatal(get_type_name(), $sformatf("received unexpected BRESP for id=%0d", id))
     end
     tx = m_write_resp_q_from_id[id].pop_front();
-    tx.resp = vif.cb_mon.BRESP;
+    tx.resp.push_back(vif.cb_mon.BRESP);
     analysis_port.write(tx);
   end
 endtask : do_write_rsp
@@ -141,11 +141,10 @@ task axi_monitor::do_read_cmd();
 endtask : do_read_cmd
 
 
-// FIXME: handle multiple beats
 task axi_monitor::do_read_data();
   forever begin
-    axi_tx tx;
     int id;
+    axi_tx tx;
 
     @(vif.cb_mon);
     while (vif.cb_mon.RREADY !== 1 || vif.cb_mon.RVALID !==1) @(vif.cb_mon);
@@ -154,24 +153,29 @@ task axi_monitor::do_read_data();
     if (queue_is_empty(m_read_cmd_q_from_id, id)) begin
       `uvm_fatal(get_type_name(), $sformatf("received unexpected RDATA for id=%0d", id))
     end
-    tx            = m_read_cmd_q_from_id[id].pop_front();
-    tx.data[0]    = vif.cb_mon.RDATA;
-    tx.byte_en[0] = {AXI_STRB_WIDTH{1'b1}};
-    tx.resp       = vif.cb_mon.RRESP;
-    analysis_port.write(tx);
+    tx = m_read_cmd_q_from_id[id][0];
+    tx.data.push_back(vif.cb_mon.RDATA);
+    tx.byte_en.push_back({AXI_STRB_WIDTH{1'b1}});
+    tx.resp.push_back(vif.cb_mon.RRESP);
+    if (vif.cb_mon.RLAST) begin
+      void'(m_read_cmd_q_from_id[id].pop_front());
+      analysis_port.write(tx);
+    end
   end
 endtask : do_read_data
 
 
-// FIXME: handle multiple beats
-function void axi_monitor::update_write_resp_q(int id);
+function void axi_monitor::update_write_resp_q(int id, bit wlast);
   if (!queue_is_empty(m_write_cmd_q_from_id, id) &&
     m_wdata_from_id.exists(id) && m_wdata_from_id[id].data.size() > 0) begin
     axi_tx tx;
-    tx = m_write_cmd_q_from_id[id].pop_front();
-    tx.data[0]    = m_wdata_from_id[id].data.pop_front();
-    tx.byte_en[0] = m_wdata_from_id[id].byte_en.pop_front();
-    m_write_resp_q_from_id[id].push_back(tx);
+    tx = m_write_cmd_q_from_id[id][0];
+    tx.data.push_back(m_wdata_from_id[id].data.pop_front());
+    tx.byte_en.push_back(m_wdata_from_id[id].byte_en.pop_front());
+    if (wlast) begin
+      void'(m_write_cmd_q_from_id[id].pop_front());
+      m_write_resp_q_from_id[id].push_back(tx);
+    end
   end
 endfunction
 

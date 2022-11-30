@@ -7,7 +7,7 @@ class axi_slave_driver extends axi_driver;
 
   extern function new(string name, uvm_component parent);
 
-  bit [AXI_DATA_WIDTH-1:0] mem[*];
+  bit [7:0] m_mem[*];
 
   // tx: received from the sequencer
   axi_tx m_write_cmd_delays[$];
@@ -32,8 +32,10 @@ class axi_slave_driver extends axi_driver;
   // utils
   extern task set_b_data_signals_to_X();
   extern task set_r_data_signals_to_X();
-  extern function void update_write_resp_q(int id);
+  extern function void update_write_resp_q(int id, bit wlast);
   extern function bit queue_is_empty(ref axi_tx q_from_id[int][$], int id);
+  extern function void write_tx_in_mem(axi_tx tx);
+  extern function bit [AXI_DATA_WIDTH-1:0] read_nth_data_of_tx_in_mem(axi_tx tx);
 
 endclass : axi_slave_driver
 
@@ -109,20 +111,22 @@ task axi_slave_driver::do_write_cmd();
     tx.prot            = vif.cb_drv_s.AWPROT;
     tx.qos             = vif.cb_drv_s.AWQOS;
     tx.region          = vif.cb_drv_s.AWREGION;
+    tx.data            = {};
+    tx.byte_en         = {};
+    tx.resp            = {};
     m_write_cmd_q_from_id[tx.id].push_back(tx);
-    update_write_resp_q(tx.id);
+    update_write_resp_q(tx.id, 0);
   end
 endtask : do_write_cmd
 
 
-// FIXME: handle multiple beats
 task axi_slave_driver::do_write_data();
   forever begin
     int id;
     axi_tx tx;
 
     wait (m_write_data_delays.size() > 0);
-    tx = m_write_data_delays.pop_front();
+    tx = m_write_data_delays[0];
     repeat (tx.delay_w) @(vif.cb_drv_s);
 
     vif.cb_drv_s.WREADY <= 1;
@@ -136,7 +140,7 @@ task axi_slave_driver::do_write_data();
     end
     m_wdata_from_id[id].data.push_back(vif.cb_drv_s.WDATA);
     m_wdata_from_id[id].byte_en.push_back(vif.cb_drv_s.WSTRB);
-    update_write_resp_q(id);
+    update_write_resp_q(id, vif.cb_drv_s.WLAST);
   end
 endtask : do_write_data
 
@@ -150,7 +154,7 @@ task axi_slave_driver::do_write_rsp();
     id = get_available_id(m_write_resp_q_from_id);
     tx = m_write_resp_q_from_id[id].pop_front();
     repeat (tx.delay_b) @(vif.cb_drv_s);
-    mem[tx.addr] = tx.data[0];
+    write_tx_in_mem(tx);
 
     vif.cb_drv_s.BVALID <= 1;
     vif.cb_drv_s.BID    <= id;
@@ -190,6 +194,9 @@ task axi_slave_driver::do_read_cmd();
     tx.prot            = vif.cb_drv_s.ARPROT;
     tx.qos             = vif.cb_drv_s.ARQOS;
     tx.region          = vif.cb_drv_s.ARREGION;
+    tx.data            = {};
+    tx.byte_en         = {};
+    tx.resp            = {};
     m_read_cmd_q_from_id[tx.id].push_back(tx);
   end
 endtask : do_read_cmd
@@ -198,25 +205,33 @@ endtask : do_read_cmd
 // FIXME: handle multiple beats
 task axi_slave_driver::do_read_data();
   forever begin
+    bit is_last;
+    bit [AXI_DATA_WIDTH-1:0] rdata;
     int id;
     axi_tx tx;
 
     wait_on_queues(m_read_cmd_q_from_id);
     id = get_available_id(m_read_cmd_q_from_id);
-    tx = m_read_cmd_q_from_id[id].pop_front();
+    tx = m_read_cmd_q_from_id[id][0];
     repeat (tx.delay_r) @(vif.cb_drv_s);
+    rdata = read_nth_data_of_tx_in_mem(tx);
+    tx.data.push_back(rdata);
+    is_last = (tx.data.size() == (tx.burst_len_m1 + 1));
 
     vif.cb_drv_s.RVALID <= 1;
     vif.cb_drv_s.RID    <= id;
-    vif.cb_drv_s.RDATA  <= mem[tx.addr];
+    vif.cb_drv_s.RDATA  <= rdata;
     vif.cb_drv_s.RRESP  <= 0;
-    vif.cb_drv_s.RLAST  <= 1;
+    vif.cb_drv_s.RLAST  <= is_last;
     @(vif.cb_drv_s);
     while (vif.cb_drv_s.RREADY !== 1) @(vif.cb_drv_s);
 
     vif.cb_drv_s.RVALID <= 0;
     set_r_data_signals_to_X();
-    seq_item_port.put(tx);
+    if (is_last) begin
+      void'(m_read_cmd_q_from_id[id].pop_front());
+      seq_item_port.put(tx);
+    end
   end
 endtask : do_read_data
 
@@ -235,20 +250,48 @@ task axi_slave_driver::set_r_data_signals_to_X();
 endtask : set_r_data_signals_to_X
 
 
-function void axi_slave_driver::update_write_resp_q(int id);
+function void axi_slave_driver::update_write_resp_q(int id, bit wlast);
   if (!queue_is_empty(m_write_cmd_q_from_id, id) &&
     m_wdata_from_id.exists(id) && m_wdata_from_id[id].data.size() > 0) begin
     axi_tx tx;
-    tx = m_write_cmd_q_from_id[id].pop_front();
-    tx.data[0]    = m_wdata_from_id[id].data.pop_front();
-    tx.byte_en[0] = m_wdata_from_id[id].byte_en.pop_front();
-    m_write_resp_q_from_id[id].push_back(tx);
+    tx = m_write_cmd_q_from_id[id][0];
+    tx.data.push_back(m_wdata_from_id[id].data.pop_front());
+    tx.byte_en.push_back(m_wdata_from_id[id].byte_en.pop_front());
+    if (wlast) begin
+      void'(m_write_cmd_q_from_id[id].pop_front());
+      void'(m_write_data_delays.pop_front());
+      m_write_resp_q_from_id[id].push_back(tx);
+    end
   end
 endfunction
 
 
 function bit axi_slave_driver::queue_is_empty(ref axi_tx q_from_id[int][$], int id);
   return !q_from_id.exists(id) || (q_from_id[id].size() == 0);
+endfunction
+
+
+function void axi_slave_driver::write_tx_in_mem(axi_tx tx);
+  foreach (tx.data[beat_idx]) begin
+    bit [AXI_ADDR_WIDTH-1:0] addr;
+    addr = tx.get_nth_addr(beat_idx);
+    for (int byte_idx = 0; byte_idx < AXI_STRB_WIDTH; byte_idx++) begin
+      if (tx.byte_en[beat_idx][byte_idx]) begin
+        m_mem[addr+byte_idx] = (tx.data[beat_idx] >> byte_idx * 8) & 8'hff;
+      end
+    end
+  end
+endfunction
+
+
+function bit [AXI_DATA_WIDTH-1:0] axi_slave_driver::read_nth_data_of_tx_in_mem(axi_tx tx);
+  bit [AXI_ADDR_WIDTH-1:0] addr;
+  bit [AXI_DATA_WIDTH-1:0] rdata;
+  addr = tx.get_nth_addr(tx.data.size());
+  for (int byte_idx = 0; byte_idx < AXI_STRB_WIDTH; byte_idx++) begin
+    rdata[byte_idx*8+:8] = m_mem[addr+byte_idx];
+  end
+  return rdata;
 endfunction
 
 

@@ -5,11 +5,11 @@ class axi_master_driver extends axi_driver;
 
   `uvm_component_utils(axi_master_driver)
 
-  axi_tx m_write_cmd_q_from_id[int] [$];
+  axi_tx m_write_cmd_q_from_id[int][$];
   axi_tx m_write_data_q_from_id[int][$];
   axi_tx m_write_resp_q_from_id[int][$];
-  axi_tx m_read_cmd_q_from_id[int]  [$];
-  axi_tx m_read_data_q_from_id[int] [$];
+  axi_tx m_read_cmd_q_from_id[int][$];
+  axi_tx m_read_data_q_from_id[int][$];
 
   // cannot predict which ID RDATA and BRESP are going to use,
   // instead, we save the delays of the latest command
@@ -116,7 +116,6 @@ task axi_master_driver::do_write_cmd();
 endtask : do_write_cmd
 
 
-// FIXME: handle multiple beats
 task axi_master_driver::do_write_data();
   forever begin
     int id;
@@ -124,21 +123,24 @@ task axi_master_driver::do_write_data();
 
     wait_on_queues(m_write_data_q_from_id);
     id = get_available_id(m_write_data_q_from_id);
-    tx = m_write_data_q_from_id[id].pop_front();
+    tx = m_write_data_q_from_id[id][0];
     repeat (tx.delay_w) @(vif.cb_drv_m);
 
     vif.cb_drv_m.WVALID <= 1;
     vif.cb_drv_m.WID    <= id;
-    vif.cb_drv_m.WDATA  <= tx.data[0];
-    vif.cb_drv_m.WSTRB  <= tx.byte_en[0];
-    vif.cb_drv_m.WLAST  <= 1;
+    vif.cb_drv_m.WDATA  <= tx.data.pop_front();
+    vif.cb_drv_m.WSTRB  <= tx.byte_en.pop_front();
+    vif.cb_drv_m.WLAST  <= (tx.data.size() == 0);
     @(vif.cb_drv_m);
     while (vif.cb_drv_m.WREADY !== 1) @(vif.cb_drv_m);
 
     vif.cb_drv_m.WVALID <= 0;
     set_w_data_signals_to_X();
-    tx.write_data_has_been_sent = 1;
-    check_write_tx_has_been_issued(tx);
+    if (tx.data.size() == 0) begin
+      tx.write_data_has_been_sent = 1;
+      void'(m_write_data_q_from_id[id].pop_front());
+      check_write_tx_has_been_issued(tx);
+    end
   end
 endtask : do_write_data
 
@@ -156,7 +158,7 @@ task axi_master_driver::do_write_rsp();
 
     vif.cb_drv_m.BREADY <= 0;
     tx = m_write_resp_q_from_id[vif.cb_drv_m.BID].pop_front();
-    tx.resp = vif.cb_drv_m.BRESP;
+    tx.resp[0] = vif.cb_drv_m.BRESP;
     seq_item_port.put(tx);
   end
 endtask : do_write_rsp
@@ -194,9 +196,9 @@ task axi_master_driver::do_read_cmd();
 endtask : do_read_cmd
 
 
-// FIXME: handle multiple beats
 task axi_master_driver::do_read_data();
   forever begin
+    int id;
     axi_tx tx;
 
     wait_on_queues(m_read_data_q_from_id);
@@ -207,11 +209,15 @@ task axi_master_driver::do_read_data();
     while (vif.cb_drv_m.RVALID !== 1) @(vif.cb_drv_m);
 
     vif.cb_drv_m.RREADY <= 0;
-    tx            = m_read_data_q_from_id[vif.cb_drv_m.RID].pop_front();
-    tx.data[0]    = vif.cb_drv_m.RDATA;
-    tx.byte_en[0] = {AXI_STRB_WIDTH{1'b1}};
-    tx.resp       = vif.cb_drv_m.RRESP;
-    seq_item_port.put(tx);
+    id = vif.cb_drv_m.RID;
+    tx = m_read_data_q_from_id[id][0];
+    tx.data.push_back(vif.cb_drv_m.RDATA);
+    tx.byte_en.push_back({AXI_STRB_WIDTH{1'b1}});
+    tx.resp.push_back(vif.cb_drv_m.RRESP);
+    if (vif.cb_drv_m.RLAST) begin
+      void'(m_read_data_q_from_id[id].pop_front());
+      seq_item_port.put(tx);
+    end
   end
 endtask : do_read_data
 
@@ -231,10 +237,10 @@ endtask : set_aw_data_signals_to_X
 
 
 task axi_master_driver::set_w_data_signals_to_X();
-  vif.cb_drv_m.WID    <= {AXI_ID_WIDTH{1'bx}};
-  vif.cb_drv_m.WDATA  <= {AXI_DATA_WIDTH{1'bx}};
-  vif.cb_drv_m.WSTRB  <= {AXI_STRB_WIDTH{1'bx}};
-  vif.cb_drv_m.WLAST  <= 'hx;
+  vif.cb_drv_m.WID   <= {AXI_ID_WIDTH{1'bx}};
+  vif.cb_drv_m.WDATA <= {AXI_DATA_WIDTH{1'bx}};
+  vif.cb_drv_m.WSTRB <= {AXI_STRB_WIDTH{1'bx}};
+  vif.cb_drv_m.WLAST <= 'hx;
 endtask : set_w_data_signals_to_X
 
 

@@ -22,14 +22,16 @@ class top_scoreboard extends uvm_scoreboard;
 
 
   virtual function void write_from_axi_master(input axi_tx pkt);
-    `uvm_info(get_type_name(), $sformatf(
-              "Received tx from axi_master: %s", pkt.sprint(uvm_default_line_printer)), UVM_HIGH)
+    for (int i = 0; i <= pkt.burst_len_m1; i++) begin
+      `uvm_info(get_type_name(), pkt.print_nth_beat(i), UVM_LOW)
+    end
   endfunction : write_from_axi_master
 
 
   virtual function void write_from_axi_slave(input axi_tx pkt);
-    `uvm_info(get_type_name(), $sformatf(
-              "Received tx from axi_slave: %s", pkt.sprint(uvm_default_line_printer)), UVM_HIGH)
+    for (int i = 0; i <= pkt.burst_len_m1; i++) begin
+      `uvm_info(get_type_name(), pkt.print_nth_beat(i), UVM_HIGH)
+    end
   endfunction : write_from_axi_slave
 
 
