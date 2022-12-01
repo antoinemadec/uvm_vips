@@ -41,13 +41,12 @@ class axi_tx extends uvm_sequence_item;
 
   // constraints
   constraint main_c {
-    data.size() == burst_len_m1 + 1;
-    byte_en.size() == data.size();
-    if (rwb) {resp.size() == data.size();} else {resp.size() == 1;}
+    soft data.size() == burst_len_m1 + 1;
+    soft byte_en.size() == data.size();
+    soft if (rwb) {resp.size() == data.size();} else {resp.size() == 1;}
 
     // FIXME
     burst_type == 0;
-    addr == 0;
     lock == 0;
     cache == 0;
     prot == 0;

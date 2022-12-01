@@ -26,11 +26,16 @@ TODO
 
 ## 🚧 TODO
   - finish AXI3
-    - fork threads
-    - all bursts
+    - add support for
+      - FIXED and WRAP burst type
+      - lock, cache, prot, qos, region
     - narrow xfer
-    - add slave auto mode
   - implement AXI4
+  - more sequences
+    - make command always busy
+    - th_idx != id ?
+  - code factorization (slave/monitor)
+  - better naming convention ?
   - improve doc
 
 ## 🙏 Credits

@@ -60,8 +60,7 @@ class top_scoreboard extends uvm_scoreboard;
     end
     if (pkt.rwb) begin
       compare_read_tx_to_mem(pkt);
-    end
-    else begin
+    end else begin
       write_tx_in_mem(pkt);
     end
   endfunction : write_from_axi_master

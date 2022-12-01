@@ -32,7 +32,7 @@ class axi_slave_driver extends axi_driver;
   // utils
   extern task set_b_data_signals_to_X();
   extern task set_r_data_signals_to_X();
-  extern function void update_write_resp_q(int id, bit wlast);
+  extern function void update_write_resp_q(int id);
   extern function bit queue_is_empty(ref axi_tx q_from_id[int][$], int id);
   extern function void write_tx_in_mem(axi_tx tx);
   extern function bit [AXI_DATA_WIDTH-1:0] read_nth_data_of_tx_in_mem(axi_tx tx);
@@ -115,7 +115,7 @@ task axi_slave_driver::do_write_cmd();
     tx.byte_en         = {};
     tx.resp            = {};
     m_write_cmd_q_from_id[tx.id].push_back(tx);
-    update_write_resp_q(tx.id, 0);
+    update_write_resp_q(tx.id);
   end
 endtask : do_write_cmd
 
@@ -140,7 +140,7 @@ task axi_slave_driver::do_write_data();
     end
     m_wdata_from_id[id].data.push_back(vif.cb_drv_s.WDATA);
     m_wdata_from_id[id].byte_en.push_back(vif.cb_drv_s.WSTRB);
-    update_write_resp_q(id, vif.cb_drv_s.WLAST);
+    update_write_resp_q(id);
   end
 endtask : do_write_data
 
@@ -250,19 +250,22 @@ task axi_slave_driver::set_r_data_signals_to_X();
 endtask : set_r_data_signals_to_X
 
 
-function void axi_slave_driver::update_write_resp_q(int id, bit wlast);
+function void axi_slave_driver::update_write_resp_q(int id);
   // verilog_format: off  // better alignment than the tool's
   if (!queue_is_empty(m_write_cmd_q_from_id, id) &&
     m_wdata_from_id.exists(id) && m_wdata_from_id[id].data.size() > 0) begin
   // verilog_format: on
     axi_tx tx;
     tx = m_write_cmd_q_from_id[id][0];
-    tx.data.push_back(m_wdata_from_id[id].data.pop_front());
-    tx.byte_en.push_back(m_wdata_from_id[id].byte_en.pop_front());
-    if (wlast) begin
-      void'(m_write_cmd_q_from_id[id].pop_front());
-      void'(m_write_data_delays.pop_front());
-      m_write_resp_q_from_id[id].push_back(tx);
+    while (m_wdata_from_id[id].data.size() != 0) begin
+      tx.data.push_back(m_wdata_from_id[id].data.pop_front());
+      tx.byte_en.push_back(m_wdata_from_id[id].byte_en.pop_front());
+      if (tx.data.size() == (tx.burst_len_m1 + 1)) begin
+        void'(m_write_cmd_q_from_id[id].pop_front());
+        void'(m_write_data_delays.pop_front());
+        m_write_resp_q_from_id[id].push_back(tx);
+        break;
+      end
     end
   end
 endfunction

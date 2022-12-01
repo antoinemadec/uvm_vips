@@ -27,7 +27,7 @@ class axi_monitor extends uvm_monitor;
   extern task do_read_cmd();
 
   // utils
-  extern function void update_write_resp_q(int id, bit wlast);
+  extern function void update_write_resp_q(int id);
   extern function bit queue_is_empty(ref axi_tx q_from_id[int][$], int id);
 
 endclass : axi_monitor
@@ -74,7 +74,7 @@ task axi_monitor::do_write_cmd();
     tx.qos             = vif.cb_mon.AWQOS;
     tx.region          = vif.cb_mon.AWREGION;
     m_write_cmd_q_from_id[tx.id].push_back(tx);
-    update_write_resp_q(tx.id, 0);
+    update_write_resp_q(tx.id);
   end
 endtask : do_write_cmd
 
@@ -93,7 +93,7 @@ task axi_monitor::do_write_data();
     end
     m_wdata_from_id[id].data.push_back(vif.cb_mon.WDATA);
     m_wdata_from_id[id].byte_en.push_back(vif.cb_mon.WSTRB);
-    update_write_resp_q(id, vif.cb_mon.WLAST);
+    update_write_resp_q(id);
   end
 endtask : do_write_data
 
@@ -165,18 +165,21 @@ task axi_monitor::do_read_data();
 endtask : do_read_data
 
 
-function void axi_monitor::update_write_resp_q(int id, bit wlast);
+function void axi_monitor::update_write_resp_q(int id);
   // verilog_format: off  // better alignment than the tool's
   if (!queue_is_empty(m_write_cmd_q_from_id, id) &&
     m_wdata_from_id.exists(id) && m_wdata_from_id[id].data.size() > 0) begin
   // verilog_format: on
     axi_tx tx;
     tx = m_write_cmd_q_from_id[id][0];
-    tx.data.push_back(m_wdata_from_id[id].data.pop_front());
-    tx.byte_en.push_back(m_wdata_from_id[id].byte_en.pop_front());
-    if (wlast) begin
-      void'(m_write_cmd_q_from_id[id].pop_front());
-      m_write_resp_q_from_id[id].push_back(tx);
+    while (m_wdata_from_id[id].data.size() != 0) begin
+      tx.data.push_back(m_wdata_from_id[id].data.pop_front());
+      tx.byte_en.push_back(m_wdata_from_id[id].byte_en.pop_front());
+      if (tx.data.size() == (tx.burst_len_m1 + 1)) begin
+        void'(m_write_cmd_q_from_id[id].pop_front());
+        m_write_resp_q_from_id[id].push_back(tx);
+        break;
+      end
     end
   end
 endfunction
