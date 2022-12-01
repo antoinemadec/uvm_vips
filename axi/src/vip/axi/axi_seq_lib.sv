@@ -3,8 +3,8 @@
 
 
 typedef struct {
-  bit[AXI_ADDR_WIDTH-1:0] addr_min;
-  bit[AXI_ADDR_WIDTH-1:0] addr_max;
+  bit [AXI_ADDR_WIDTH-1:0] addr_min;
+  bit [AXI_ADDR_WIDTH-1:0] addr_max;
   int tx_nb;
 } thread_struct_t;
 
@@ -43,7 +43,7 @@ endclass : axi_default_seq
 class axi_master_threads_seq extends uvm_sequence #(axi_tx);
   `uvm_object_utils(axi_master_threads_seq)
 
-  axi_config  m_config;
+  axi_config m_config;
 
   thread_struct_t m_threads_q[$];
 
@@ -53,18 +53,18 @@ class axi_master_threads_seq extends uvm_sequence #(axi_tx);
 
 
   task run_one_thread(thread_struct_t th, int id);
-    `uvm_info(get_type_name(), $sformatf("thread: id=%0d; addr in [0x%x:0x%x]; tx_nb=%0d",
-      id, th.addr_min, th.addr_max, th.tx_nb), UVM_LOW)
+    `uvm_info(get_type_name(), $sformatf("thread: id=%0d; addr in [0x%x:0x%x]; tx_nb=%0d", id,
+                                         th.addr_min, th.addr_max, th.tx_nb), UVM_LOW)
 
     repeat (th.tx_nb) begin
       axi_tx tx;
       tx = axi_tx::type_id::create("tx");
       start_item(tx);
       if (!tx.randomize() with {
-        addr >= th.addr_min;
-        addr <= th.addr_max;
-        id == local::id;
-      })
+            addr >= th.addr_min;
+            addr <= th.addr_max;
+            id == local:: id;
+          })
         `uvm_fatal(get_type_name(), "Failed to randomize tx")
       finish_item(tx);
       get_response(rsp, tx.get_transaction_id());
@@ -95,7 +95,7 @@ endclass : axi_master_threads_seq
 class axi_forever_slave_seq extends uvm_sequence #(axi_tx);
   `uvm_object_utils(axi_forever_slave_seq)
 
-  axi_config  m_config;
+  axi_config m_config;
 
   int m_outstandig_tx[2] = {256, 256};
 
@@ -109,11 +109,11 @@ class axi_forever_slave_seq extends uvm_sequence #(axi_tx);
     tx = axi_tx::type_id::create("tx");
     start_item(tx);
     if (!tx.randomize() with {
-      rwb == local::rwb;
-      // unused
-      data.size() == 0;
-      byte_en.size() == 0;
-    })
+          rwb == local:: rwb;
+          // unused
+          data.size() == 0;
+          byte_en.size() == 0;
+        })
       `uvm_fatal(get_type_name(), "Failed to randomize tx")
     finish_item(tx);
     get_response(rsp, tx.get_transaction_id());
@@ -121,9 +121,9 @@ class axi_forever_slave_seq extends uvm_sequence #(axi_tx);
 
 
   task body();
-    `uvm_info(get_type_name(), $sformatf(
-      "Forever slave sequence starting (outstanding read=%0d/write=%0d)",
-      m_outstandig_tx[1], m_outstandig_tx[0]), UVM_LOW)
+    `uvm_info(get_type_name(),
+              $sformatf("Forever slave sequence starting (outstanding read=%0d/write=%0d)",
+                        m_outstandig_tx[1], m_outstandig_tx[0]), UVM_LOW)
 
     for (int rwb = 0; rwb < 2; rwb++) begin
       for (int out_idx = 0; out_idx < m_outstandig_tx[rwb]; out_idx++) begin

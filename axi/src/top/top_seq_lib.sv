@@ -31,13 +31,13 @@ task top_default_seq::body();
   `uvm_info(get_type_name(), "Default sequence starting", UVM_HIGH)
 
   fork
-    run_slave(1<<AXI_ID_WIDTH);
+    run_slave(1 << AXI_ID_WIDTH);
   join_none
 
   begin
     thread_struct_t thread_q[$];
     for (int th_idx = 0; th_idx < 16; th_idx++) begin
-      bit[AXI_ADDR_WIDTH-1:0] addr_base;
+      bit [AXI_ADDR_WIDTH-1:0] addr_base;
       addr_base = th_idx * 'h1000_0000;
       thread_q.push_back('{addr_min: addr_base, addr_max: addr_base + 'h400, tx_nb: 128});
     end
@@ -53,8 +53,7 @@ task top_default_seq::run_master(thread_struct_t thread_q[$]);
   seq = axi_master_threads_seq::type_id::create("seq");
   seq.m_threads_q = thread_q;
   seq.set_item_context(this, m_axi_master_agent.m_sequencer);
-  if (!seq.randomize())
-    `uvm_fatal(get_type_name(), "Failed to randomize sequence")
+  if (!seq.randomize()) `uvm_fatal(get_type_name(), "Failed to randomize sequence")
   seq.m_config = m_axi_master_agent.m_config;
   seq.set_starting_phase(get_starting_phase());
   seq.start(m_axi_master_agent.m_sequencer, this);
@@ -66,8 +65,7 @@ task top_default_seq::run_slave(int max_outstanding_cmds);
   seq = axi_forever_slave_seq::type_id::create("seq");
   seq.m_outstandig_tx = {max_outstanding_cmds, max_outstanding_cmds};
   seq.set_item_context(this, m_axi_slave_agent.m_sequencer);
-  if (!seq.randomize())
-    `uvm_fatal(get_type_name(), "Failed to randomize sequence")
+  if (!seq.randomize()) `uvm_fatal(get_type_name(), "Failed to randomize sequence")
   seq.m_config = m_axi_slave_agent.m_config;
   seq.set_starting_phase(get_starting_phase());
   seq.start(m_axi_slave_agent.m_sequencer, this);
