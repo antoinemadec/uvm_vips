@@ -28,11 +28,6 @@ class axi_tx extends uvm_sequence_item;
   rand int rate_b;
   rand int rate_ar;
   rand int rate_r;
-  int      delay_aw;
-  int      delay_w;
-  int      delay_b;
-  int      delay_ar;
-  int      delay_r;
 
   // monitor/driver attributes
   bit      is_master                = 0;
@@ -61,14 +56,6 @@ class axi_tx extends uvm_sequence_item;
     rate_ar inside {[1 : 100]};
     rate_r inside {[1 : 100]};
   }
-
-  function void post_randomize();
-    delay_aw = rate_to_delay(rate_aw);
-    delay_w  = rate_to_delay(rate_w);
-    delay_b  = rate_to_delay(rate_b);
-    delay_ar = rate_to_delay(rate_ar);
-    delay_r  = rate_to_delay(rate_r);
-  endfunction
 
   // protocol functions
   extern function bit [AXI_ADDR_WIDTH-1:0] get_nth_addr(int n);
@@ -118,11 +105,6 @@ function void axi_tx::do_copy(uvm_object rhs);
   rate_b = rhs_.rate_b;
   rate_ar = rhs_.rate_ar;
   rate_r = rhs_.rate_r;
-  delay_aw = rhs_.delay_aw;
-  delay_w = rhs_.delay_w;
-  delay_b = rhs_.delay_b;
-  delay_ar = rhs_.delay_ar;
-  delay_r = rhs_.delay_r;
 endfunction : do_copy
 
 

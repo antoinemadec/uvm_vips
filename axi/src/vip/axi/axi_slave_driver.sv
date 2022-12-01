@@ -93,7 +93,7 @@ task axi_slave_driver::do_write_cmd();
 
     wait (m_write_cmd_delays.size() > 0);
     tx = m_write_cmd_delays.pop_front();
-    repeat (tx.delay_aw) @(vif.cb_drv_s);
+    repeat (tx.rate_to_delay(tx.rate_aw)) @(vif.cb_drv_s);
 
     vif.cb_drv_s.AWREADY <= 1;
     @(vif.cb_drv_s);
@@ -127,7 +127,7 @@ task axi_slave_driver::do_write_data();
 
     wait (m_write_data_delays.size() > 0);
     tx = m_write_data_delays[0];
-    repeat (tx.delay_w) @(vif.cb_drv_s);
+    repeat (tx.rate_to_delay(tx.rate_w)) @(vif.cb_drv_s);
 
     vif.cb_drv_s.WREADY <= 1;
     @(vif.cb_drv_s);
@@ -153,7 +153,7 @@ task axi_slave_driver::do_write_rsp();
     wait_on_queues(m_write_resp_q_from_id);
     id = get_available_id(m_write_resp_q_from_id);
     tx = m_write_resp_q_from_id[id].pop_front();
-    repeat (tx.delay_b) @(vif.cb_drv_s);
+    repeat (tx.rate_to_delay(tx.rate_b)) @(vif.cb_drv_s);
     write_tx_in_mem(tx);
 
     vif.cb_drv_s.BVALID <= 1;
@@ -176,7 +176,7 @@ task axi_slave_driver::do_read_cmd();
 
     wait (m_read_cmd_delays.size() > 0);
     tx = m_read_cmd_delays.pop_front();
-    repeat (tx.delay_ar) @(vif.cb_drv_s);
+    repeat (tx.rate_to_delay(tx.rate_ar)) @(vif.cb_drv_s);
 
     vif.cb_drv_s.ARREADY <= 1;
     @(vif.cb_drv_s);
@@ -213,7 +213,7 @@ task axi_slave_driver::do_read_data();
     wait_on_queues(m_read_cmd_q_from_id);
     id = get_available_id(m_read_cmd_q_from_id);
     tx = m_read_cmd_q_from_id[id][0];
-    repeat (tx.delay_r) @(vif.cb_drv_s);
+    repeat (tx.rate_to_delay(tx.rate_r)) @(vif.cb_drv_s);
     rdata = read_nth_data_of_tx_in_mem(tx);
     tx.data.push_back(rdata);
     is_last = (tx.data.size() == (tx.burst_len_m1 + 1));
