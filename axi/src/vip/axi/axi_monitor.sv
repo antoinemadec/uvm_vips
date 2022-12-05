@@ -167,19 +167,16 @@ endtask : do_read_data
 
 function void axi_monitor::update_write_resp_q(int id);
   // verilog_format: off  // better alignment than the tool's
-  if (!queue_is_empty(m_write_cmd_q_from_id, id) &&
+  while (!queue_is_empty(m_write_cmd_q_from_id, id) &&
     m_wdata_from_id.exists(id) && m_wdata_from_id[id].data.size() > 0) begin
   // verilog_format: on
     axi_tx tx;
     tx = m_write_cmd_q_from_id[id][0];
-    while (m_wdata_from_id[id].data.size() != 0) begin
-      tx.data.push_back(m_wdata_from_id[id].data.pop_front());
-      tx.byte_en.push_back(m_wdata_from_id[id].byte_en.pop_front());
-      if (tx.data.size() == (tx.burst_len_m1 + 1)) begin
-        void'(m_write_cmd_q_from_id[id].pop_front());
-        m_write_resp_q_from_id[id].push_back(tx);
-        break;
-      end
+    tx.data.push_back(m_wdata_from_id[id].data.pop_front());
+    tx.byte_en.push_back(m_wdata_from_id[id].byte_en.pop_front());
+    if (tx.data.size() == (tx.burst_len_m1 + 1)) begin
+      void'(m_write_cmd_q_from_id[id].pop_front());
+      m_write_resp_q_from_id[id].push_back(tx);
     end
   end
 endfunction
